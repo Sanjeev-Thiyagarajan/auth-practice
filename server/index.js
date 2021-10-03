@@ -1,6 +1,7 @@
 const express = require("express");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
+const csrf = require("csurf");
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 var jwt = require("jsonwebtoken");
@@ -29,10 +30,11 @@ app.use(
 app.use(cookieParser());
 app.use(express.json());
 
-const posts = [
-  { id: 1, title: "title of first post", content: "content of first post" },
-  { id: 2, title: "title of second post", content: "content of second post" },
-];
+app.use(
+  csrf({
+    cookie: true,
+  })
+);
 
 app.get("/", protect, (req, res) => {
   res.send("hello");
@@ -49,7 +51,7 @@ app.get("/posts", protect, async (req, res) => {
   }
 });
 
-app.post("/posts", async (req, res) => {
+app.post("/posts", protect, async (req, res) => {
   const { title, content } = req.body;
   try {
     const newPost = await Post.create({ title, content });
@@ -59,6 +61,12 @@ app.post("/posts", async (req, res) => {
       status: "fail",
     });
   }
+});
+
+app.get("/users/profile", protect, (req, res) => {
+  const { user } = req;
+  user.password = null;
+  res.json({ user });
 });
 
 app.post("/users/signup", async (req, res) => {
@@ -116,13 +124,12 @@ app.post("/users/login", async (req, res) => {
     res.cookie("token", token, {
       // expires: new Date(Date.now() + 1*60*60*1000),
       expires: new Date(expiresAt),
-      httpOnly: true,
-      secure: false,
+      //   httpOnly: true,
+      secure: false, // needs to be true in production
     });
     res.status(200).json({
-      tokenType: "Bearer",
-      token,
-      expiresAt,
+      //   tokenType: "Bearer",
+      //   token,
       user,
     });
   } catch (e) {
@@ -131,6 +138,11 @@ app.post("/users/login", async (req, res) => {
       status: "fail",
     });
   }
+});
+
+app.post("/users/logout", protect, (req, res) => {
+  res.clearCookie("token");
+  return res.json({ message: "successfully logged out" });
 });
 
 app.listen(3000, () => console.log("listening on port 3000"));

@@ -5,12 +5,18 @@ import appService from "../services/appService";
 import DOMPurify from "dompurify";
 
 const Posts = () => {
-  const { logout } = useContext(authContext);
+  const { logout, clearAuth } = useContext(authContext);
   const [posts, setPosts] = useState([]);
   useEffect(() => {
     const fetchData = async () => {
-      const results = await appService.get("/posts");
-      setPosts(results.data);
+      try {
+        const results = await appService.get("/posts");
+        setPosts(results.data);
+      } catch (err) {
+        if (err.message === "User is not logged in") {
+          clearAuth();
+        }
+      }
     };
     fetchData();
   }, []);
@@ -19,6 +25,10 @@ const Posts = () => {
       <Link to="/" onClick={logout}>
         Logout
       </Link>
+      <div>
+        <Link to="/posts/create">Create New Post</Link>
+      </div>
+
       {posts.map((post) => {
         return (
           <div key={post._id}>

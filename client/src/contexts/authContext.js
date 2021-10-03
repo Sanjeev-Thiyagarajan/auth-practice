@@ -1,91 +1,102 @@
-import React, {context, createContext, useEffect, useState} from 'react';
-import { useHistory } from 'react-router-dom';
-import appService, {setToken} from '../services/appService';
+import React, { context, createContext, useEffect, useState } from "react";
+import { useHistory } from "react-router-dom";
+import appService, { setToken } from "../services/appService";
 
-export const authContext = createContext()
+export const authContext = createContext();
 
+export const AuthProvider = ({ children }) => {
+  const history = useHistory();
+  const [auth, setAuth] = useState({
+    // token: null,
+    isAuthenticated: false,
+    user: null,
+  });
 
-export const AuthProvider = ({children}) => {
-    const history = useHistory()
-    const [auth, setAuth] = useState({
-        token: null,
-        expiresAt: null,
-        user: null
-    })
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState(false)
+  const verifyAuthStatus = async () => {
+    try {
+      const results = await appService.get("/users/profile");
+      const { user } = results.data;
 
-    useEffect(() => {
-        const token = localStorage.getItem('token')
-        const expiresAt = localStorage.getItem('expiresAt')
-        const user = localStorage.getItem('user') 
-        const userParse = user ? JSON.parse(user) : null
-        setAuth({
-            token,
-            expiresAt,
-            user: userParse
-        })
-        setLoading(false)
-        
-    }, [])
+      setAuth({
+        //   token,
+        // expiresAt,
+        user,
+        isAuthenticated: true,
+      });
 
-    useEffect(() => {
-        
-        setToken(auth.token)
-        console.log(`grabbign from local storage ${auth.token}`)
-    },[auth])
-
-    
-    const updateAuth = (token, expiresAt, user) => {
-        localStorage.setItem('token', token)
-        localStorage.setItem('expiresAt', expiresAt)
-        localStorage.setItem('user', JSON.stringify(user))
-        setAuth({
-            token,
-            expiresAt,
-            user
-        })
+      //   setAuth(Object.assign({}, auth, {user, isAuthenticated: true}))
+    } catch (err) {
+      if (err.response.status === 401) {
+        setAuth({ user: null, isAuthenticated: false });
+      }
+    } finally {
+      setLoading(false);
     }
-    const isAuthenticated = () => {
-        if (!auth.token || !auth.expiresAt) {
-            return false
-        }
-        return Date.now() < auth.expiresAt
-    }
+  };
 
-    const logout = () => {
-        localStorage.removeItem('token')
-        localStorage.removeItem('expiresAt')
-        localStorage.removeItem('user')
-        setAuth({
-            token: null,
-            expiresAt: null,
-            user: null
-        })
-        history.push("/")
-    }
+  useEffect(() => {
+    verifyAuthStatus();
+  }, []);
 
-    const login = async (username, password) => {
-        try {
-            const res = await appService.post("/users/login", {
-                    username,
-                    password
-                })
-                console.log(res)
-                const {token, expiresAt, user} = res.data
-                updateAuth(token, expiresAt, user)
-                history.push("/posts")
+  const updateAuth = (user) => {
+    setAuth({
+      isAuthenticated: true,
+      user,
+    });
+  };
+  const isAuthenticated = () => {
+    // if (!auth.user || !auth.isAuthenticated) {
+    //   return false;
+    // }
+    return auth.isAuthenticated;
+  };
 
-        } catch (err) {
+  const clearAuth = () => {
+    setAuth({
+      isAuthenticated: false,
+      user: null,
+    });
+  };
 
-        }
-                
-    }
-    return (
-        <authContext.Provider value={{auth, updateAuth, isAuthenticated, logout, login, loading}}>
-            {children}
-        </authContext.Provider>
-    )
-}
+  const logout = async () => {
+    try {
+      const results = await appService.post("/users/logout");
+      setAuth({
+        isAuthenticated: false,
+        user: null,
+      });
+      history.push("/");
+    } catch (err) {}
+  };
 
+  const login = async (username, password) => {
+    try {
+      const res = await appService.post("/users/login", {
+        username,
+        password,
+      });
+
+      const { user } = res.data;
+      updateAuth(user);
+      history.push("/posts");
+    } catch (err) {}
+  };
+  return (
+    <authContext.Provider
+      value={{
+        auth,
+        updateAuth,
+        isAuthenticated,
+        logout,
+        login,
+        loading,
+        clearAuth,
+      }}
+    >
+      {children}
+    </authContext.Provider>
+  );
+};

